@@ -36,10 +36,11 @@ def chat_client():
                 # incoming message from remote server, s
                 data = sock.recv(4096)
                 if data:
-                    # print data
-                    sys.stdout.write(data.decode('utf-8'))
-                    sys.stdout.write('[Me] ')
-                    sys.stdout.flush()
+                    message = data.decode('utf-8')
+                    if message != '<server-ping>':
+                        sys.stdout.write(message)
+                        sys.stdout.write('[Me] ')
+                        sys.stdout.flush()
             else:
                 # user entered a message
                 msg = sys.stdin.readline()

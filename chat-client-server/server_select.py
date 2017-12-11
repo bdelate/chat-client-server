@@ -2,7 +2,7 @@ import socket
 import select
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-sock.bind(('96.126.109.157', 9009))
+sock.bind(('96.126.109.157', 8453))
 sock.listen(5)
 
 # lists of sockets to watch for input and output events
