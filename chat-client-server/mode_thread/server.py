@@ -2,6 +2,24 @@ import socket
 from threading import Thread, Lock
 
 
+def start_server():
+    connected_client_sockets = []
+    client_manager_lock = Lock()
+    server_socket = create_server_socket()
+
+    while True:
+        client_socket, address = server_socket.accept()
+        client_socket.settimeout(20)  # ping client every 20 seconds using client_still_connected() to see if they're still connected
+        print('Client connected from:', address)
+        client_thread = Thread(target=client_manager, args=(client_socket, address, client_manager_lock, connected_client_sockets))
+        client_thread.daemon = True
+        client_thread.start()
+
+        with client_manager_lock:
+            connected_client_sockets.append(client_socket)
+    server_socket.close()
+
+
 def client_manager(client_socket, address, client_manager_lock, connected_client_sockets):
     is_connected = True
     while is_connected:
@@ -17,7 +35,6 @@ def client_manager(client_socket, address, client_manager_lock, connected_client
                     print('Client disconnected from:', address)
                     is_connected = False
                 else:
-                    client_socket.sendall('sdgfgf'.encode('utf-8'))
                     broadcast_message(message=message,
                                       originator=client_socket,
                                       client_manager_lock=client_manager_lock,
@@ -38,7 +55,7 @@ def broadcast_message(message, originator, client_manager_lock, connected_client
                 try:
                     client.sendall(message.encode('utf-8'))
                 except socket.error:
-                    print('Broadcast message failed to:', address)
+                    print('Broadcast message failed to:', client)
 
 
 def client_still_connected(client_socket, address):
@@ -51,7 +68,7 @@ def client_still_connected(client_socket, address):
         return True
 
 
-def start_server():
+def create_server_socket():
     server_socket = socket.socket()
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     host = socket.gethostname()
@@ -60,21 +77,3 @@ def start_server():
     server_socket.listen(5)
     print('The server has started and is listening for client connections')
     return server_socket
-
-
-if __name__ == '__main__':
-    connected_client_sockets = []
-    client_manager_lock = Lock()
-    server_socket = start_server()
-
-    while True:
-        client_socket, address = server_socket.accept()
-        client_socket.settimeout(20)  # ping client every 20 seconds using client_still_connected() to see if they're still connected
-        print('Client connected from:', address)
-        client_thread = Thread(target=client_manager, args=(client_socket, address, client_manager_lock, connected_client_sockets))
-        client_thread.daemon = True
-        client_thread.start()
-
-        with client_manager_lock:
-            connected_client_sockets.append(client_socket)
-    server_socket.close()

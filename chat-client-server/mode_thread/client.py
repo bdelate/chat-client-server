@@ -3,8 +3,21 @@ import socket
 from threading import Thread
 
 
-def connect():
-    host = sys.argv[1]
+def start_client(host):
+    client_socket = connect(host=host)
+    response_thread = Thread(target=server_response_monitor, args=(client_socket,))
+    response_thread.daemon = True
+    response_thread.start()
+
+    input_thread = Thread(target=input_monitor, args=(client_socket,))
+    input_thread.daemon = True
+    input_thread.start()
+
+    response_thread.join()
+    input_thread.join()
+
+
+def connect(host):
     port = 8453
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,7 +45,8 @@ def server_response_monitor(client_socket):
             if message:
                 message = message.decode('utf-8')
                 message = message.rstrip('\n')
-                print(message)
+                if message != '<ping>':
+                    print(message)
             else:
                 print('Server connection lost. You have been disconnected.')
                 is_connected = False
@@ -59,21 +73,3 @@ def server_still_connected(client_socket):
         return False
     else:
         return True
-
-
-if __name__ == '__main__':
-    if(len(sys.argv) < 2):
-        print('Usage : python client.py hostname')
-        sys.exit()
-
-    client_socket = connect()
-    response_thread = Thread(target=server_response_monitor, args=(client_socket,))
-    response_thread.daemon = True
-    response_thread.start()
-
-    input_thread = Thread(target=input_monitor, args=(client_socket,))
-    input_thread.daemon = True
-    input_thread.start()
-
-    response_thread.join()
-    input_thread.join()
