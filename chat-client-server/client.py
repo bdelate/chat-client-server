@@ -12,7 +12,6 @@ def chat_client():
     port = int(sys.argv[2])
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(2)
 
     # connect to remote host
     try:
@@ -37,7 +36,7 @@ def chat_client():
                 data = sock.recv(4096)
                 if data:
                     message = data.decode('utf-8')
-                    if message != '<server-ping>':
+                    if message != '<ping>':
                         sys.stdout.write(message)
                         sys.stdout.write('[Me] ')
                         sys.stdout.flush()

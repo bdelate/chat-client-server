@@ -15,9 +15,9 @@ def client_manager(client_socket, address, client_manager_lock, connected_client
                 message = message.rstrip('\n')
                 if message == '\q':
                     print('Client disconnected from:', address)
-                    client_socket.sendall('You have disconnected from the server'.encode('utf-8'))
                     is_connected = False
                 else:
+                    client_socket.sendall('sdgfgf'.encode('utf-8'))
                     broadcast_message(message=message,
                                       originator=client_socket,
                                       client_manager_lock=client_manager_lock,
@@ -43,7 +43,7 @@ def broadcast_message(message, originator, client_manager_lock, connected_client
 
 def client_still_connected(client_socket, address):
     try:
-        client_socket.sendall('<server-ping>'.encode('utf-8'))
+        client_socket.sendall('<ping>'.encode('utf-8'))
     except socket.error:
         print('Client has disconnected unexpectedly:', address)
         return False
@@ -69,7 +69,7 @@ if __name__ == '__main__':
 
     while True:
         client_socket, address = server_socket.accept()
-        client_socket.settimeout(5)
+        client_socket.settimeout(20)  # ping client every 20 seconds using client_still_connected() to see if they're still connected
         print('Client connected from:', address)
         client_thread = Thread(target=client_manager, args=(client_socket, address, client_manager_lock, connected_client_sockets))
         client_thread.daemon = True
