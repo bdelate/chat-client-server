@@ -1,85 +1,49 @@
-import socket
 import asyncio
+from .protocol import Protocol
 
 
-async def start_server(loop):
-    connected_client_sockets = []
-    # client_manager_lock = Lock()
-    client_manager_lock = None
-    server_socket = create_server_socket()
+class ChatRoom:
 
-    while True:
-        client_socket, address = await loop.sock_accept(server_socket)
-        client_socket.settimeout(20)  # ping client every 20 seconds using client_still_connected() to see if they're still connected
-        print('Client connected from:', address)
-        loop.create_task(client_manager(client_socket, address, client_manager_lock, connected_client_sockets, loop))
-        # client_thread = Thread(target=client_manager, args=(client_socket, address, client_manager_lock, connected_client_sockets))
-        # client_thread.daemon = True
-        # client_thread.start()
-        #
-        # with client_manager_lock:
-        #     connected_client_sockets.append(client_socket)
-    server_socket.close()
+    def __init__(self, port, loop):
+        self._port = port
+        self._loop = loop
+        self._username_transports = {}
 
+    def run(self):
+        print('The server is running. Awaiting client connections...')
+        coro = self._loop.create_server(
+            protocol_factory=lambda: Protocol(self),
+            host="",
+            port=self._port
+        )
+        return self._loop.run_until_complete(coro)
 
-async def client_manager(client_socket, address, client_manager_lock, connected_client_sockets, loop):
-    is_connected = True
-    while is_connected:
-        message = await loop.sock_recv(client_socket, 1024)
-        if message:
-            print(message.decode('utf-8'))
-        # except socket.timeout:
-        #     pass
-            # is_connected = client_still_connected(client_socket=client_socket, address=address)
-        # else:
-        #     if message:
-        #         print(message.decode('utf-8'))
-    #             message = message.decode('utf-8')
-    #             message = message.rstrip('\n')
-    #             if message == '\q':
-    #                 print('Client disconnected from:', address)
-    #                 is_connected = False
-    #             else:
-    #                 broadcast_message(message=message,
-    #                                   originator=client_socket,
-    #                                   client_manager_lock=client_manager_lock,
-    #                                   connected_client_sockets=connected_client_sockets)
-    #
-    #         else:
-    #             is_connected = client_still_connected(client_socket=client_socket, address=address)
-    #
-    # with client_manager_lock:
-    #     connected_client_sockets.remove(client_socket)
-    # client_socket.close()
-
-
-def broadcast_message(message, originator, client_manager_lock, connected_client_sockets):
-    with client_manager_lock:
-        for client in connected_client_sockets:
-            if client != originator:
-                try:
-                    client.sendall(message.encode('utf-8'))
-                except socket.error:
-                    print('Broadcast message failed to:', client)
-
-
-def client_still_connected(client_socket, address):
-    try:
-        client_socket.sendall('<ping>'.encode('utf-8'))
-    except socket.error:
-        print('Client has disconnected unexpectedly:', address)
-        return False
-    else:
+    def register_user(self, username, transport):
+        if username in self.users():
+            return False
+        self._username_transports[username] = transport
+        self._broadcast("User {} arrived".format(username))
         return True
 
+    def deregister_user(self, username):
+        del self._username_transports[username]
+        self._broadcast("User {} departed".format(username), username)
 
-def create_server_socket():
-    server_socket = socket.socket()
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    host = socket.gethostname()
-    port = 8453
-    server_socket.bind((host, port))
-    server_socket.listen(5)
-    server_socket.setblocking(False)
-    print('The server has started and is listening for client connections')
-    return server_socket
+    def users(self):
+        return self._username_transports.keys()
+
+    def message_from(self, username, message):
+        self._broadcast("{}: {}".format(username, message), username)
+
+    def _broadcast(self, message, username=None):
+        for user, transport in self._username_transports.items():
+            if user != username:
+                transport.write(message.encode('utf-8'))
+                transport.write('\n'.encode('utf-8'))
+
+
+def start_server():
+    loop = asyncio.get_event_loop()
+    chat_room = ChatRoom(8453, loop)
+    _ = chat_room.run()
+    loop.run_forever()
